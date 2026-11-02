@@ -1,0 +1,9 @@
+torch>=2.2
+numpy
+PyYAML
+matplotlib
+pandas
+tqdm
+scikit-learn
+scipy
+pytest
