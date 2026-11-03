@@ -6,19 +6,19 @@ from torch import nn
 from torch.utils.data import DataLoader
 
 
-def move_to_device(data: Any, device: torch.device) -> Any:
+def data_to_device(data: Any, device: torch.device) -> Any:
     """递归地将批次中的 Tensor 移动到指定设备。"""
     if isinstance(data, torch.Tensor):
         return data.to(device)
 
     if isinstance(data, dict):
-        return {key: move_to_device(value, device) for key, value in data.items()}
+        return {key: data_to_device(value, device) for key, value in data.items()}
 
     if isinstance(data, tuple):
-        return tuple(move_to_device(value, device) for value in data)
+        return tuple(data_to_device(value, device) for value in data)
 
     if isinstance(data, list):
-        return [move_to_device(value, device) for value in data]
+        return [data_to_device(value, device) for value in data]
 
     return data
 
@@ -77,11 +77,7 @@ class Trainer:
 
         self.history: list[dict[str, Any]] = []
 
-    def _run_epoch(
-        self,
-        loader: DataLoader,
-        training: bool,
-    ) -> dict[str, float]:
+    def run_epoch(self, loader: DataLoader, training: bool) -> dict[str, float]:
         """执行一个训练 epoch，或完整的验证/测试流程。"""
         if training:
             self.model.train()
@@ -99,8 +95,8 @@ class Trainer:
                     raise ValueError("每个 batch 应为 (inputs, targets)。")
 
                 inputs, targets = batch
-                inputs = move_to_device(inputs, self.device)
-                targets = move_to_device(targets, self.device)
+                inputs = data_to_device(inputs, self.device)
+                targets = data_to_device(targets, self.device)
 
                 if training:
                     self.optimizer.zero_grad(set_to_none=True)
@@ -155,15 +151,15 @@ class Trainer:
 
     def train_epoch(self, train_loader: DataLoader) -> dict[str, float]:
         """训练一个 epoch。"""
-        return self._run_epoch(train_loader, training=True)
+        return self.run_epoch(train_loader, training=True)
 
     def validate(self, val_loader: DataLoader) -> dict[str, float]:
         """执行完整验证集评估。"""
-        return self._run_epoch(val_loader, training=False)
+        return self.run_epoch(val_loader, training=False)
 
     def test(self, test_loader: DataLoader) -> dict[str, float]:
         """执行完整测试集评估。"""
-        return self._run_epoch(test_loader, training=False)
+        return self.run_epoch(test_loader, training=False)
 
     def fit(
         self,
@@ -222,3 +218,84 @@ class Trainer:
                     )
 
         return self.history
+
+    @torch.inference_mode()
+    def evaluate(self, dataloader):
+
+        self.model.eval()
+
+        total_loss = 0.0
+        total_samples = 0
+
+        all_outputs = []
+        all_targets = []
+
+        for inputs, targets in dataloader:
+
+            inputs = inputs.to(self.device)
+            targets = targets.to(self.device)
+
+            outputs = self.model(inputs)
+
+            loss = self.criterion(outputs, targets)
+
+            batch_size = targets.size(0)
+
+            total_loss += loss.item() * batch_size
+            total_samples += batch_size
+
+            all_outputs.append(outputs.cpu())
+            all_targets.append(targets.cpu())
+
+        if total_samples == 0:
+            raise ValueError("评估数据集为空。")
+
+        outputs = torch.cat(all_outputs, dim=0)
+        targets = torch.cat(all_targets, dim=0)
+
+        predictions = outputs.argmax(dim=1)
+
+        # 计算整个数据集的指标
+        metrics = self.compute_metrics(
+            predictions,
+            targets,
+        )
+
+        metrics["loss"] = total_loss / total_samples
+
+        return metrics, predictions, targets
+
+    @staticmethod
+    def compute_metrics(predictions, targets):
+
+        from sklearn.metrics import (
+            accuracy_score,
+            precision_score,
+            recall_score,
+            f1_score,
+        )
+
+        predictions = predictions.numpy()
+        targets = targets.numpy()
+
+        return {
+            "accuracy": accuracy_score(targets, predictions),
+            "precision": precision_score(
+                targets,
+                predictions,
+                average="macro",
+                zero_division=0,
+            ),
+            "recall": recall_score(
+                targets,
+                predictions,
+                average="macro",
+                zero_division=0,
+            ),
+            "f1": f1_score(
+                targets,
+                predictions,
+                average="macro",
+                zero_division=0,
+            ),
+        }

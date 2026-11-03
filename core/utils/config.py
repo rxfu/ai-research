@@ -2,7 +2,7 @@ from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
-from core.utils.io import load_yaml, save_yaml
+from core.utils.serialize import load_yaml, save_yaml
 
 
 def load_config(path: str | Path) -> dict[str, Any]:
@@ -95,13 +95,13 @@ def validate_config(config: dict) -> None:
     if config["training"]["accumulation_steps"] < 1:
         raise ValueError("accumulation_steps 必须大于 0")
 
-    if config['training']["learning_rate"] <= 0:
+    if config["training"]["learning_rate"] <= 0:
         raise ValueError("learning_rate 必须大于 0")
 
-    if config['training']['weight_decay'] <= 0:
+    if config["training"]["weight_decay"] <= 0:
         raise ValueError("weight_decay 不能小于 0")
 
-    if config['training']["patience"] < 1:
+    if config["training"]["patience"] < 1:
         raise ValueError("patience 必须大于 0")
 
     if config["training"]["monitor_mode"] not in {"min", "max"}:

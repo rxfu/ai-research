@@ -3,7 +3,7 @@ from typing import Dict, List, Any
 
 import pandas as pd
 
-from core.utils.io import load_json, load_csv
+from core.utils.serialize import load_json, load_csv
 
 
 def load_history(path: str | Path) -> dict[str, Any]:

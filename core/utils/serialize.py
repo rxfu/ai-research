@@ -6,13 +6,13 @@ import pandas as pd
 import yaml
 
 
-def save_json(path: str | Path, data: dict) -> None:
+def save_json(path: str | Path, data: Any) -> None:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
 
 
-def load_json(path: str | Path) -> dict[str, Any]:
+def load_json(path: str | Path) -> Any:
     path = Path(path)
 
     if not path.exists():
@@ -21,7 +21,7 @@ def load_json(path: str | Path) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def save_yaml(path: str | Path, data: dict) -> None:
+def save_yaml(path: str | Path, data: Any) -> None:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
@@ -29,13 +29,20 @@ def save_yaml(path: str | Path, data: dict) -> None:
     )
 
 
-def load_yaml(path: str | Path) -> dict[str, Any]:
+def load_yaml(path: str | Path) -> Any:
     path = Path(path)
 
     if not path.exists():
         raise FileNotFoundError(f"找不到文件: {path}")
 
     return yaml.safe_load(path.read_text(encoding="utf-8"))
+
+
+def save_csv(path: str | Path, data: pd.DataFrame, index: bool = False) -> None:
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    data.to_csv(path, index=index, encoding="utf-8-sig")
 
 
 def load_csv(path: str | Path) -> pd.DataFrame:
